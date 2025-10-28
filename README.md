@@ -1,7 +1,7 @@
-# pitchers
+# ⚾️ pitchers 
 
 
-🦀 Messing around with the MLB API and Rust 
+Messing around with the MLB API pitch data.  Written in Rust 🦀
 
 For example, looking at Game 2 of the 2025 World Series (Game id = `813026`)
 
