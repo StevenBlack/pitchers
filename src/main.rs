@@ -153,7 +153,7 @@ fn is_pitch_event(ev: &Value) -> bool {
 fn find_pitch_type(ev: &Value) -> String {
     if let Some(details) = ev.get("details") {
         if let Some(t) = details.get("type").and_then(|v| v.get("description")).and_then(|v| v.as_str()) {
-            return t.to_string();
+            return t.to_string().to_lowercase();
         }
 
         if let Some(desc) = details.get("description").and_then(|v| v.as_str()) {
