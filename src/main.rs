@@ -151,33 +151,7 @@ fn is_pitch_event(ev: &Value) -> bool {
 }
 
 fn find_pitch_type(ev: &Value) -> String {
-    // attempt several paths where pitch type might live
-    // if let Some(pitch_data) = ev.get("pitchData") {
-
-    //     println!("pitch_data: {:?}", pitch_data);
-    //     println!("");
-
-    //     if let Some(pt) = pitch_data.get("pitchType").and_then(|v| v.as_str()) {
-    //         return pt.to_string();
-    //     }
-    //     if let Some(details) = pitch_data.get("details") {
-    //         if let Some(t) = details.get("type").and_then(|v| v.as_str()) {
-    //             // often this is a pitch code like "FF", or sometimes an action - we return it for mapping
-    //             return t.to_string();
-    //         }
-    //         if let Some(desc) = details.get("description").and_then(|v| v.as_str()) {
-    //             return desc.to_string();
-    //         }
-    //     }
-    //     if let Some(t) = pitch_data.get("type").and_then(|v| v.as_str()) {
-    //         return t.to_string();
-    //     }
-    // }
-
     if let Some(details) = ev.get("details") {
-        // if let Some(t) = details.get("type").and_then(|v| v.as_str()) {
-        //     return t.to_string();
-        // }
         if let Some(t) = details.get("type").and_then(|v| v.get("description")).and_then(|v| v.as_str()) {
             return t.to_string();
         }
