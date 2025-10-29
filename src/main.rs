@@ -246,16 +246,20 @@ fn normalize_pitch_type(raw: &str) -> String {
 
 fn print_summary(summary: &HashMap<String, (String, HashMap<String, u32>)>) {
     // print pitchers sorted by name
+    println!("");
     let mut names: Vec<_> = summary.keys().collect();
     names.sort();
     for name in names {
-        let (team, pitches) = &summary[name];
-        println!("{} ({})", name, team);
+        let (_team, pitches) = &summary[name];
+
+        let sum: u32 = pitches.values().sum();
+
+        println!("{:13} ({:>2})", name, sum);
         // sort pitch types by count descending
         let mut pairs: Vec<_> = pitches.iter().collect();
         pairs.sort_by(|a, b| b.1.cmp(a.1));
         for (ptype, count) in pairs {
-            println!("  {:12} {}", ptype, count);
+            println!("  {:12} {:>2}", ptype, count);
         }
         println!();
     }
