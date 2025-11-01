@@ -132,7 +132,7 @@ fn summarize_pitches(feed: &Value) -> HashMap<String, (String, HashMap<String, u
             for ev in events {
                 if is_pitch_event(ev) {
                     let raw_type = find_pitch_type(ev);
-                    let pitch_name = normalize_pitch_type(&raw_type);
+                    let (pitch_name, pitch_category) = normalize_pitch_type(&raw_type);
                     let entry = result.entry(pitcher_name.clone()).or_insert_with(|| (team_name.clone(), HashMap::new()));
                     *entry.1.entry(pitch_name).or_insert(0) += 1;
                 }
@@ -164,10 +164,10 @@ fn find_pitch_type(ev: &Value) -> String {
     "unknown".to_string()
 }
 
-fn normalize_pitch_type(raw: &str) -> String {
+fn normalize_pitch_type(raw: &str) -> (String, String) {
     let code = raw.trim();
     if code.is_empty() {
-        return "unknown".to_string();
+        return ("unknown".to_string(),  "unknown".to_string());
     }
     // common code-to-name mapping
     let mappings: &[(&str, &str)] = &[
@@ -189,33 +189,33 @@ fn normalize_pitch_type(raw: &str) -> String {
     let up = code.to_uppercase();
     for (k, v) in mappings {
         if up == *k {
-            return v.to_string();
+            return (v.to_string(), v.to_string());
         }
     }
 
     // substring matching for common names
     let low = code.to_lowercase();
     if low.contains("fast")  {
-        return "fastball".to_string();
+        return ("fastball".to_string(), "heater".to_string());
     }
     if low.contains("slider")  {
-        return "slider".to_string();
+        return ("slider".to_string(), "breaking ball".to_string());
     }
     if low.contains("curve")  {
-        return "curveball".to_string();
+        return ("curveball".to_string(), "breaking ball".to_string());
     }
     if low.contains("change") {
-        return "changeup".to_string();
+        return ("changeup".to_string(), "offspeed".to_string());
     }
     if low.contains("sinker")  {
-        return "sinker".to_string();
+        return ("sinker".to_string(), "heater".to_string());
     }
-    if low.contains("cutter") || low == "fc" {
-        return "cutter".to_string();
+    if low.contains("cutter")  {
+        return ("cutter".to_string(), "breaking ball".to_string());
     }
 
     // fallback to returning the raw label (helpful when API gives full text)
-    code.to_string()
+    (code.to_string(), code.to_string())
 }
 
 fn print_summary(summary: &HashMap<String, (String, HashMap<String, u32>)>) {
