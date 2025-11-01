@@ -97,9 +97,9 @@ fn fetch_game_feed(client: &Client, game_pk: u64) -> Result<Value> {
     Ok(resp)
 }
 
-fn summarize_pitches(feed: &Value) -> HashMap<String, (String, HashMap<String, u32>)> {
-    // Map: pitcher_name -> (team_name, map<pitch_name, count>)
-    let mut result: HashMap<String, (String, HashMap<String, u32>)> = HashMap::new();
+fn summarize_pitches(feed: &Value) -> HashMap<String, HashMap<String, u32>> {
+    // Map: pitcher_name -> map<pitch_name, count>
+    let mut result: HashMap<String, HashMap<String, u32>> = HashMap::new();
 
     let all_plays = feed
         .get("liveData")
@@ -118,23 +118,16 @@ fn summarize_pitches(feed: &Value) -> HashMap<String, (String, HashMap<String, u
             .unwrap_or("Unknown pitcher")
             .to_string();
 
-        let team_name = play
-            .get("matchup")
-            .and_then(|m| m.get("pitcher"))
-            .and_then(|p| p.get("team"))
-            .and_then(|t| t.get("name"))
-            .and_then(|s| s.as_str())
-            .unwrap_or("")
-            .to_string();
+        // team_name removed — not used anymore
 
         // collect pitch events: some plays have "playEvents" (array)
         if let Some(events) = play.get("playEvents").and_then(|e| e.as_array()) {
             for ev in events {
                 if is_pitch_event(ev) {
                     let raw_type = find_pitch_type(ev);
-                    let (pitch_name, pitch_category) = normalize_pitch_type(&raw_type);
-                    let entry = result.entry(pitcher_name.clone()).or_insert_with(|| (team_name.clone(), HashMap::new()));
-                    *entry.1.entry(pitch_name).or_insert(0) += 1;
+                    let (pitch_name, _pitch_category) = normalize_pitch_type(&raw_type);
+                    let entry = result.entry(pitcher_name.clone()).or_insert_with(|| HashMap::new());
+                    *entry.entry(pitch_name).or_insert(0) += 1;
                 }
             }
         }
@@ -220,13 +213,13 @@ fn normalize_pitch_type(raw: &str) -> (String, String) {
     (code.to_string(), code.to_string())
 }
 
-fn print_summary(summary: &HashMap<String, (String, HashMap<String, u32>)>) {
+fn print_summary(summary: &HashMap<String, HashMap<String, u32>>) {
     // print pitchers sorted by name
     println!("");
     let mut names: Vec<_> = summary.keys().collect();
     names.sort();
     for name in names {
-        let (_team, pitches) = &summary[name];
+        let pitches = &summary[name];
 
         let sum: u32 = pitches.values().sum();
 
