@@ -6,6 +6,7 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 use reqwest::blocking::Client;
 use serde_json::Value;
+use colored::Colorize;
 
 /// Summarize pitch types per pitcher for a single MLB game.
 #[derive(Parser)]
@@ -213,18 +214,6 @@ fn normalize_pitch_type(raw: &str) -> (String, String) {
 }
 
 fn print_summary(summary: &HashMap<String, HashMap<String, HashMap<String, u32>>>) {
-    // helper: wrap text in yellow ANSI color
-    fn yellow(s: &str) -> String {
-        // 33 = yellow, 0 = reset
-        format!("\x1b[33m{}\x1b[0m", s)
-    }
-
-    // helper: pale/bright blue for pitcher names
-    fn pale_blue(s: &str) -> String {
-        // 94 = bright blue, 0 = reset
-        format!("\x1b[94m{}\x1b[0m", s)
-    }
-
     println!("");
     let mut names: Vec<_> = summary.keys().collect();
     names.sort();
@@ -235,14 +224,14 @@ fn print_summary(summary: &HashMap<String, HashMap<String, HashMap<String, u32>>
 
         let total: u32 = categories.values().flat_map(|m| m.values()).sum();
         // pad name first so ANSI escape sequences don't break alignment
-        let name_padded = format!("{:13}", name);
-        println!("{} ({:>2})", pale_blue(&name_padded), total);
+        let name_padded = format!("{:13}", name.bright_blue().bold());
+        println!("{} ({})", &name_padded, total);
 
         // print preferred categories first in that order
         for cat in &preferred {
             if let Some(pitches) = categories.get(*cat) {
                 let cat_total: u32 = pitches.values().sum();
-                println!("  {} {:>2}", yellow(cat), cat_total);
+                println!("  {} {:>2}", cat.bright_yellow(), cat_total);
 
                 let mut pairs: Vec<_> = pitches.iter().collect();
                 pairs.sort_by(|a, b| b.1.cmp(a.1));
@@ -261,7 +250,7 @@ fn print_summary(summary: &HashMap<String, HashMap<String, HashMap<String, u32>>
         for cat in other {
             if let Some(pitches) = categories.get(cat) {
                 let cat_total: u32 = pitches.values().sum();
-                println!("  {} {:>2}", yellow(cat), cat_total);
+                println!("  {} {:>2}", cat.bright_yellow(), cat_total);
 
                 let mut pairs: Vec<_> = pitches.iter().collect();
                 pairs.sort_by(|a, b| b.1.cmp(a.1));
