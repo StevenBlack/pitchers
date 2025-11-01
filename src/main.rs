@@ -224,8 +224,8 @@ fn print_summary(summary: &HashMap<String, HashMap<String, HashMap<String, u32>>
 
         let total: u32 = categories.values().flat_map(|m| m.values()).sum();
         // pad name first so ANSI escape sequences don't break alignment
-        let name_padded = format!("{:13}", name.bright_blue().bold());
-        println!("{} ({})", &name_padded, total);
+        let name_padded = format!("{:13}", name.bright_white().bold());
+        println!("{} ({})", &name_padded, total.to_string().bright_white().bold());
 
         // print preferred categories first in that order
         for cat in &preferred {
