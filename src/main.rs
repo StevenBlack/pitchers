@@ -213,7 +213,9 @@ fn normalize_pitch_type(raw: &str) -> (String, String) {
     if low.contains("cutter")  {
         return ("cutter".to_string(), "breaking ball".to_string());
     }
-
+    if low.contains("splitter")  {
+        return ("splitter".to_string(), "offspeed".to_string());
+    }
     // fallback to returning the raw label (helpful when API gives full text)
     (code.to_string(), code.to_string())
 }
