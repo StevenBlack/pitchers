@@ -195,19 +195,19 @@ fn normalize_pitch_type(raw: &str) -> String {
 
     // substring matching for common names
     let low = code.to_lowercase();
-    if low.contains("fast") || low == "fastball" || low.contains("fb") {
+    if low.contains("fast")  {
         return "fastball".to_string();
     }
-    if low.contains("slider") || low.contains("sl") && low.len() <= 3 {
+    if low.contains("slider")  {
         return "slider".to_string();
     }
-    if low.contains("curve") || low.contains("cu") {
+    if low.contains("curve")  {
         return "curveball".to_string();
     }
-    if low.contains("change") || low.contains("ch") {
+    if low.contains("change") {
         return "changeup".to_string();
     }
-    if low.contains("sinker") || low == "si" {
+    if low.contains("sinker")  {
         return "sinker".to_string();
     }
     if low.contains("cutter") || low == "fc" {
