@@ -97,9 +97,8 @@ fn fetch_game_feed(client: &Client, game_pk: u64) -> Result<Value> {
     Ok(resp)
 }
 
-fn summarize_pitches(feed: &Value) -> HashMap<String, HashMap<String, u32>> {
-    // Map: pitcher_name -> map<pitch_name, count>
-    let mut result: HashMap<String, HashMap<String, u32>> = HashMap::new();
+fn summarize_pitches(feed: &Value) -> HashMap<String, HashMap<String, HashMap<String, u32>>> {
+    let mut result: HashMap<String, HashMap<String, HashMap<String, u32>>> = HashMap::new();
 
     let all_plays = feed
         .get("liveData")
@@ -109,7 +108,6 @@ fn summarize_pitches(feed: &Value) -> HashMap<String, HashMap<String, u32>> {
         .unwrap();
 
     for play in all_plays {
-        // pitcher info usually on the play's "matchup"
         let pitcher_name = play
             .get("matchup")
             .and_then(|m| m.get("pitcher"))
@@ -118,16 +116,17 @@ fn summarize_pitches(feed: &Value) -> HashMap<String, HashMap<String, u32>> {
             .unwrap_or("Unknown pitcher")
             .to_string();
 
-        // team_name removed — not used anymore
-
-        // collect pitch events: some plays have "playEvents" (array)
         if let Some(events) = play.get("playEvents").and_then(|e| e.as_array()) {
             for ev in events {
                 if is_pitch_event(ev) {
                     let raw_type = find_pitch_type(ev);
-                    let (pitch_name, _pitch_category) = normalize_pitch_type(&raw_type);
-                    let entry = result.entry(pitcher_name.clone()).or_insert_with(|| HashMap::new());
-                    *entry.entry(pitch_name).or_insert(0) += 1;
+                    let (pitch_name, pitch_category) = normalize_pitch_type(&raw_type);
+
+                    let pitcher_entry = result.entry(pitcher_name.clone()).or_insert_with(HashMap::new);
+                    let category_map = pitcher_entry
+                        .entry(pitch_category)
+                        .or_insert_with(HashMap::new);
+                    *category_map.entry(pitch_name).or_insert(0) += 1;
                 }
             }
         }
@@ -204,7 +203,7 @@ fn normalize_pitch_type(raw: &str) -> (String, String) {
         return ("sinker".to_string(), "heater".to_string());
     }
     if low.contains("cutter")  {
-        return ("cutter".to_string(), "breaking ball".to_string());
+        return ("cutter".to_string(), "heater".to_string());
     }
     if low.contains("splitter")  {
         return ("splitter".to_string(), "offspeed".to_string());
@@ -213,23 +212,65 @@ fn normalize_pitch_type(raw: &str) -> (String, String) {
     (code.to_string(), code.to_string())
 }
 
-fn print_summary(summary: &HashMap<String, HashMap<String, u32>>) {
-    // print pitchers sorted by name
+fn print_summary(summary: &HashMap<String, HashMap<String, HashMap<String, u32>>>) {
+    // helper: wrap text in yellow ANSI color
+    fn yellow(s: &str) -> String {
+        // 33 = yellow, 0 = reset
+        format!("\x1b[33m{}\x1b[0m", s)
+    }
+
+    // helper: pale/bright blue for pitcher names
+    fn pale_blue(s: &str) -> String {
+        // 94 = bright blue, 0 = reset
+        format!("\x1b[94m{}\x1b[0m", s)
+    }
+
     println!("");
     let mut names: Vec<_> = summary.keys().collect();
     names.sort();
+    let preferred = ["heater", "breaking ball", "offspeed"];
+
     for name in names {
-        let pitches = &summary[name];
+        let categories = &summary[name];
 
-        let sum: u32 = pitches.values().sum();
+        let total: u32 = categories.values().flat_map(|m| m.values()).sum();
+        // pad name first so ANSI escape sequences don't break alignment
+        let name_padded = format!("{:13}", name);
+        println!("{} ({:>2})", pale_blue(&name_padded), total);
 
-        println!("{:13} ({:>2})", name, sum);
-        // sort pitch types by count descending
-        let mut pairs: Vec<_> = pitches.iter().collect();
-        pairs.sort_by(|a, b| b.1.cmp(a.1));
-        for (ptype, count) in pairs {
-            println!("  {:12} {:>2}", ptype, count);
+        // print preferred categories first in that order
+        for cat in &preferred {
+            if let Some(pitches) = categories.get(*cat) {
+                let cat_total: u32 = pitches.values().sum();
+                println!("  {} {:>2}", yellow(cat), cat_total);
+
+                let mut pairs: Vec<_> = pitches.iter().collect();
+                pairs.sort_by(|a, b| b.1.cmp(a.1));
+                for (ptype, count) in pairs {
+                    println!("    {:12} {:>3}", ptype, count);
+                }
+            }
         }
+
+        // then any other categories (sorted)
+        let mut other: Vec<_> = categories
+            .keys()
+            .filter(|k| !preferred.contains(&k.as_str()))
+            .collect();
+        other.sort();
+        for cat in other {
+            if let Some(pitches) = categories.get(cat) {
+                let cat_total: u32 = pitches.values().sum();
+                println!("  {} {:>2}", yellow(cat), cat_total);
+
+                let mut pairs: Vec<_> = pitches.iter().collect();
+                pairs.sort_by(|a, b| b.1.cmp(a.1));
+                for (ptype, count) in pairs {
+                    println!("    {:12} {:>3}", ptype, count);
+                }
+            }
+        }
+
         println!();
     }
 }
