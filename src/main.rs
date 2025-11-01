@@ -1,4 +1,4 @@
-// cargo run  -- --game-pk 813026
+// cargo run  -- --id 813026
 
 use std::collections::HashMap;
 
@@ -12,7 +12,7 @@ use serde_json::Value;
 struct Opts {
     /// Game primary key (gamePk) from MLB API. If provided, date/team args are ignored.
     #[arg(long)]
-    game_pk: Option<u64>,
+    id: Option<u64>,
 
     /// Date of the game YYYY-MM-DD (used to look up the game when game-pk is not given)
     #[arg(long)]
@@ -33,7 +33,7 @@ fn main() -> Result<()> {
         .user_agent("pitchers-cli/0.1")
         .build()?;
 
-    let game_pk = if let Some(pk) = opts.game_pk {
+    let game_pk = if let Some(pk) = opts.id {
         pk
     } else {
         let date = opts
