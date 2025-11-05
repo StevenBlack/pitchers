@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use clap::Parser;
 use reqwest::blocking::Client;
 use serde_json::Value;
@@ -11,21 +11,9 @@ use colored::Colorize;
 /// Summarize pitch types per pitcher for a single MLB game.
 #[derive(Parser)]
 struct Opts {
-    /// Game primary key (gamePk) from MLB API. If provided, date/team args are ignored.
+    /// Game id from MLB API. If provided, date/team args are ignored.
     #[arg(long)]
-    id: Option<u64>,
-
-    /// Date of the game YYYY-MM-DD (used to look up the game when game-pk is not given)
-    #[arg(long)]
-    date: Option<String>,
-
-    /// Home team name (substring match) for selecting the right game on the date
-    #[arg(long)]
-    home: Option<String>,
-
-    /// Away team name (substring match) for selecting the right game on the date
-    #[arg(long)]
-    away: Option<String>,
+    id: u64,
 }
 
 fn main() -> Result<()> {
@@ -34,62 +22,14 @@ fn main() -> Result<()> {
         .user_agent("pitchers-cli/0.1")
         .build()?;
 
-    let game_pk = if let Some(pk) = opts.id {
-        pk
-    } else {
-        let date = opts
-            .date
-            .as_deref()
-            .context("date is required if game_pk is not supplied (format YYYY-MM-DD)")?;
-        find_game_pk(&client, date, opts.home.as_deref(), opts.away.as_deref())?
-    };
+    let game_id = opts.id;
 
-    let feed = fetch_game_feed(&client, game_pk)?;
+    let feed = fetch_game_feed(&client, game_id)?;
     let summary = summarize_pitches(&feed);
 
     print_summary(&summary);
 
     Ok(())
-}
-
-fn find_game_pk(client: &Client, date: &str, home_filter: Option<&str>, away_filter: Option<&str>) -> Result<u64> {
-    let url = format!("https://statsapi.mlb.com/api/v1/schedule?sportId=1&date={}", date);
-    let resp: Value = client.get(&url).send()?.error_for_status()?.json()?;
-    let dates = resp.get("dates").and_then(|v| v.as_array()).unwrap();
-
-    for date_obj in dates {
-        if let Some(games) = date_obj.get("games").and_then(|g| g.as_array()) {
-            for g in games {
-                let home_name = g
-                    .get("teams")
-                    .and_then(|t| t.get("home"))
-                    .and_then(|h| h.get("team"))
-                    .and_then(|tn| tn.get("name"))
-                    .and_then(|s| s.as_str())
-                    .unwrap_or_default()
-                    .to_lowercase();
-                let away_name = g
-                    .get("teams")
-                    .and_then(|t| t.get("away"))
-                    .and_then(|a| a.get("team"))
-                    .and_then(|tn| tn.get("name"))
-                    .and_then(|s| s.as_str())
-                    .unwrap_or_default()
-                    .to_lowercase();
-
-                let home_ok = home_filter.map_or(true, |f| home_name.contains(&f.to_lowercase()));
-                let away_ok = away_filter.map_or(true, |f| away_name.contains(&f.to_lowercase()));
-
-                if home_ok && away_ok {
-                    if let Some(pk) = g.get("gamePk").and_then(|p| p.as_u64()) {
-                        return Ok(pk);
-                    }
-                }
-            }
-        }
-    }
-
-    bail!("no matching game found for date {} and filters home={:?} away={:?}", date, home_filter, away_filter);
 }
 
 fn fetch_game_feed(client: &Client, game_pk: u64) -> Result<Value> {
@@ -209,6 +149,15 @@ fn normalize_pitch_type(raw: &str) -> (String, String) {
     if low.contains("splitter")  {
         return ("splitter".to_string(), "offspeed".to_string());
     }
+    if low.contains("sweeper")  {
+        return ("sweeper".to_string(), "breaking ball".to_string());
+    }
+    if low.contains("knuckle curve")  {
+        return ("knuckle curve".to_string(), "breaking ball".to_string());
+    }
+    if low.contains("knuckleball")  {
+        return ("knuckleball".to_string(), "other".to_string());
+    }
     // fallback to returning the raw label (helpful when API gives full text)
     (code.to_string(), code.to_string())
 }
@@ -231,7 +180,7 @@ fn print_summary(summary: &HashMap<String, HashMap<String, HashMap<String, u32>>
         for cat in &preferred {
             if let Some(pitches) = categories.get(*cat) {
                 let cat_total: u32 = pitches.values().sum();
-                println!("  {} {:>2}", cat.bright_yellow(), cat_total);
+                println!("  {} {:>2}", cat.bright_yellow().bold(), cat_total);
 
                 let mut pairs: Vec<_> = pitches.iter().collect();
                 pairs.sort_by(|a, b| b.1.cmp(a.1));
@@ -250,7 +199,7 @@ fn print_summary(summary: &HashMap<String, HashMap<String, HashMap<String, u32>>
         for cat in other {
             if let Some(pitches) = categories.get(cat) {
                 let cat_total: u32 = pitches.values().sum();
-                println!("  {} {:>2}", cat.bright_yellow(), cat_total);
+                println!("  {} {:>2}", cat.bright_yellow().bold(), cat_total);
 
                 let mut pairs: Vec<_> = pitches.iter().collect();
                 pairs.sort_by(|a, b| b.1.cmp(a.1));
