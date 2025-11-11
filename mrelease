@@ -1,0 +1,3 @@
+#!/bin/sh
+cargo build --release
+sudo cp ./target/release/pitchers /usr/local/bin/pitchers
